@@ -170,12 +170,16 @@ async def ask(request: Request):
             return JSONResponse({"resposta": random.choice(DESPEDIDA_JS)})
 
         contexto  = buscar_contexto(pergunta, biblioteca_freire)
-        print("PERGUNTA:", pergunta)
-        print("CONTEXTO:", contexto[:500])
-        print("-" * 50)
         mensagens = montar_prompt(pergunta, contexto)
         resposta_raw, ia_nome = ai_provider.chat(mensagens)
         resposta_limpa = limpar_resposta(resposta_raw)
+        # print("-" * 50)        
+        # print("PERGUNTA:", pergunta)
+        # print("CONTEXTO:", contexto[:500])
+        # print("RESPOSTA BRUTA:\n", resposta_raw)
+        # print("RESPOSTA LIMPA:\n", resposta_limpa)       
+        # print("-" * 50)
+        
 
         if is_bloqueado(resposta_limpa):
             return JSONResponse({"resposta": resposta_bloqueio()})

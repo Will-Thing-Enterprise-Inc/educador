@@ -9,18 +9,18 @@ from core.engine import ESTILOS_IA
 # Configurações por IA
 # ============================================
 CONFIGS = {
-    # "Anthropic": {"temperature": 0.45, "max_tokens": 512,  "top_p": 0.9,  "frequency_penalty": 0.45, "presence_penalty": 0.25},
-    "Gemini":    {"temperature": 0.75, "max_tokens": 2048, "top_p": 0.95, "frequency_penalty": 0.20, "presence_penalty": 0.10},
-    "Groq":      {"temperature": 0.30, "max_tokens": 600,  "top_p": 0.85, "frequency_penalty": 0.50, "presence_penalty": 0.30},
-    "Cerebras":  {"temperature": 0.50, "max_tokens": 512,  "top_p": 0.90, "frequency_penalty": 0.35, "presence_penalty": 0.20},
-    "SambaNova": {"temperature": 0.60, "max_tokens": 600,  "top_p": 0.92, "frequency_penalty": 0.30, "presence_penalty": 0.15},
+    #"Anthropic": {"temperature": 0.45, "max_tokens": 512,  "top_p": 0.9,  "frequency_penalty": 0.45, "presence_penalty": 0.25},
+    "Gemini":    {"temperature": 0.35, "max_tokens": 2048, "top_p": 0.40, "frequency_penalty": 0.10, "presence_penalty": 0.05},
+    "Groq":      {"temperature": 0.55, "max_tokens": 512,  "top_p": 0.85, "frequency_penalty": 0.80, "presence_penalty": 1.50},
+    "Cerebras":  {"temperature": 0.35, "max_tokens": 256,  "top_p": 0.85, "frequency_penalty": 1.50, "presence_penalty": 1.00},
+    "SambaNova": {"temperature": 0.75, "max_tokens": 384,  "top_p": 0.90, "frequency_penalty": 1.20, "presence_penalty": 1.00},
 }
 
 
 class FreeAIProvider:
     def __init__(self):
         self.keys = {
-            # "anthropic": os.getenv("ANTHROPIC_API_KEY"),
+            #"anthropic": os.getenv("ANTHROPIC_API_KEY"),
             "gemini":    os.getenv("GEMINI_API_KEY"),
             "groq":      os.getenv("GROQ_API_KEY"),
             "cerebras":  os.getenv("CEREBRAS_API_KEY"),
@@ -45,7 +45,7 @@ class FreeAIProvider:
              frequency_penalty=0.45, presence_penalty=0.25):
 
         providers = [
-            # ("anthropic", "Anthropic", "Claude Haiku · Anthropic", self._anthropic_chat),
+            #("anthropic", "Anthropic", "Claude Haiku · Anthropic", self._anthropic_chat),
             ("gemini",    "Gemini",    "Gemini 2.5 Flash · Google", self._gemini_chat),
             ("groq",      "Groq",      "Llama 3.3 70B · Groq",      self._groq_chat),
             ("cerebras",  "Cerebras",  "Llama 3.1 8B · Cerebras",   self._cerebras_chat),
