@@ -3,10 +3,14 @@ import os
 import random
 import json
 import base64
+import re
+import time
+
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
+from collections import defaultdict
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if BASE_DIR not in sys.path:
@@ -22,6 +26,64 @@ except ImportError as e:
     sys.exit(1)
 
 
+RATE_LIMIT = 10        # máx requisições
+JANELA_SEG = 60        # por minuto
+
+_contadores: dict = defaultdict(list)
+
+def checar_rate_limit(ip: str) -> bool:
+    agora = time.time()
+    historico = _contadores[ip]
+    # Remove entradas antigas
+    _contadores[ip] = [t for t in historico if agora - t < JANELA_SEG]
+    if len(_contadores[ip]) >= RATE_LIMIT:
+        return False
+    _contadores[ip].append(agora)
+    return True
+
+
+PADROES_INJECTION = [
+    r"###\s*\w+",
+    r"REGRAS_FREIRE",
+    r"system\s*prompt",
+    r"ignore\s+(previous|all|above)",
+    r"você (agora|deve|é|está)",
+    r"act as",
+    r"jailbreak",
+    r"esquece\s+(tudo|as regras|as instruções)",
+    r"a partir de agora",
+    r"finja\s+que",
+    r"novo\s+(papel|personagem|modo)",
+    r"sem\s+(restrições|limites|regras)",
+    r"prompt\s*(original|do sistema|interno)",
+    r"repita\s+as\s+(regras|instruções)",
+    r"ignor\w*\s+(as instruções|as regras|tudo|acima)", 
+    r"você pode",                                             
+]
+
+MARCADORES_BLOQUEIO = [
+    "BLOQUEADO", "VAZIO",
+    "não tenho elementos",      # fallback do próprio prompt
+    "ERRO_SISTEMA"                 # resposta de erro
+]
+
+def is_bloqueado(texto: str) -> bool:
+    t = texto.upper()
+    return any(m.upper() in t for m in MARCADORES_BLOQUEIO)
+
+
+def sanitizar_pergunta(texto: str) -> str | None:
+    texto = texto.strip()
+    
+    if len(texto) > 400:
+        return None  # muito longo — rejeitar
+    
+    for padrao in PADROES_INJECTION:
+        if re.search(padrao, texto, re.IGNORECASE):
+            return None
+    
+    return texto
+
 # ============================================
 # Inicialização
 # ============================================
@@ -31,8 +93,6 @@ ai_provider      = FreeAIProvider()
 biblioteca_freire = carregar_biblioteca()
 
 conversation_memory = {}
-
-MARCADORES_BLOQUEIO = ["BLOQUEADO", "VAZIO"]
 
 
 def resposta_bloqueio() -> str:
@@ -44,10 +104,6 @@ def resposta_bloqueio() -> str:
         "Companheiro, pronunciar o mundo exige compromisso com os oprimidos.",
     ]
     return random.choice(frases)
-
-
-def is_bloqueado(texto: str) -> bool:
-    return any(marcador in texto for marcador in MARCADORES_BLOQUEIO)
 
 
 def limpar_resposta(texto: str) -> str:
@@ -178,12 +234,19 @@ async def get_copyright():
 
 @app.post("/ask")
 async def ask(request: Request):
+    ip = request.client.host
+    if not checar_rate_limit(ip):
+        return JSONResponse(
+            {"resposta": "Companheiro, o diálogo precisa de pausa para reflexão."},
+            status_code=429
+        )    
     try:
         data     = await request.json()
-        pergunta = data.get("pergunta", "").strip()
+        pergunta_raw = data.get("pergunta", "").strip()
+        pergunta = sanitizar_pergunta(pergunta_raw)
 
         if not pergunta:
-            return JSONResponse({"resposta": "O diálogo começa com uma palavra."})
+            return JSONResponse({"resposta": resposta_bloqueio()})
 
         if pergunta.lower() in ["sair", "exit", "tchau", "obrigado", "ok", "quit"]:
             return JSONResponse({"resposta": random.choice(DESPEDIDA_JS)})
@@ -208,4 +271,4 @@ async def ask(request: Request):
 
     except Exception as e:
         print(f"❌ Erro: {e}")
-        return JSONResponse({"resposta": "A voz encontrou um obstáculo. Tente novamente."}, status_code=500)
+        return JSONResponse({"resposta": resposta_bloqueio()}, status_code=500)
