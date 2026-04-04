@@ -131,6 +131,11 @@ HTML_PAGE = f"""
 
         <footer class="footer">
             <p class="gassho-quote">«O diálogo é este encontro dos homens, mediatizados pelo mundo, para pronunciá-lo,<br>não se esgotando, portanto, na relação eu-tu.»<br><strong>— Paulo Freire</strong></p>
+            <p style="margin-top:12px; font-size:11px; letter-spacing:0.08em;">
+                <a href="/aviso-legal/" style="color:#a07060; text-decoration:none;">Aviso Legal</a>
+                &nbsp;·&nbsp;
+                <a href="/copyright/" style="color:#a07060; text-decoration:none;">Copyright</a>
+            </p>
         </footer>
 
     </div>
@@ -155,6 +160,20 @@ async def get_index():
 @app.head("/")
 async def head_index():
     return Response(status_code=200)
+
+
+@app.get("/aviso-legal/", response_class=HTMLResponse)
+async def get_aviso_legal():
+    path = os.path.join(BASE_DIR, "static", "legal", "aviso-legal.html")
+    with open(path, encoding="utf-8") as f:
+        return f.read()
+
+
+@app.get("/copyright/", response_class=HTMLResponse)
+async def get_copyright():
+    path = os.path.join(BASE_DIR, "static", "legal", "copyright.html")
+    with open(path, encoding="utf-8") as f:
+        return f.read()
 
 
 @app.post("/ask")
