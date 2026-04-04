@@ -189,7 +189,7 @@ input.addEventListener('keypress', (e) => {
 
 function compartilharWhatsApp(texto) {
     const msg = encodeURIComponent("Paulo Freire:\n\n" + texto + "\n\npaulo-freire.willthing.ia.br");
-    window.open(`https://wa.me/?text=${msg}`, '_blank');
+    window.open(`https://wa.me/?text=${msg}`, 'whatsapp_share');
 }
 
 function compartilharEmail(texto) {
