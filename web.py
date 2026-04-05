@@ -169,6 +169,10 @@ HTML_PAGE = f"""
         <div class="divider-stripe"></div>
 
         <div class="body-pad">
+
+            <div class="livro-select-container">
+
+
             <div class="input-container">
                 <input type="text" id="pergunta" placeholder="Dialogue com Freire..." autofocus autocomplete="off" spellcheck="false">
                 <button id="btn-mic" title="Falar">
@@ -180,6 +184,36 @@ HTML_PAGE = f"""
                     </svg>
                 </button>
                 <button id="btn-enviar" onclick="fazerPergunta()">&#10148;</button>
+            </div>
+                <select id="livro-select">
+                    <option value="todos">Todos os livros </option>
+                    <option value="A África Ensinando a Gente">A África Ensinando a Gente</option>
+                    <option value="A Importância do Ato de Ler">A Importância do Ato de Ler</option>
+                    <option value="À Sombra Dessa Mangueira">À Sombra Dessa Mangueira</option>
+                    <option value="Ação Cultural para a Liberdade">Ação Cultural para a Liberdade</option>
+                    <option value="Alfabetização - Leitura do Mundo, Leitura da Palavra">Alfabetização - Leitura do Mundo, Leitura da Palavra</option>
+                    <option value="Aprendendo com a Própria História">Aprendendo com a Própria História</option>
+                    <option value="Cartas a Cristina">Cartas a Cristina</option>
+                    <option value="Cartas à Guiné-Bissau">Cartas à Guiné-Bissau</option>
+                    <option value="Conscientização">Conscientização</option>
+                    <option value="Dialogando com a Própria História">Dialogando com a Própria História</option>
+                    <option value="Educação como Prática da Liberdade">Educação como Prática da Liberdade</option>
+                    <option value="Educação e Mudança">Educação e Mudança</option>
+                    <option value="Educar com a Mídia">Educar com a Mídia</option>
+                    <option value="Extensão ou Comunicação?">Extensão ou Comunicação?</option>
+                    <option value="Lições de Casa">Lições de Casa</option>
+                    <option value="Medo e Ousadia - O Cotidiano do Professor">Medo e Ousadia - O Cotidiano do Professor</option>
+                    <option value="Medo e Ousadia">Medo e Ousadia</option>
+                    <option value="Partir da Infância">Partir da Infância</option>
+                    <option value="Pedagogia da Autonomia">Pedagogia da Autonomia</option>
+                    <option value="Pedagogia da Esperança">Pedagogia da Esperança</option>
+                    <option value="Pedagogia da Indignação">Pedagogia da Indignação</option>
+                    <option value="Pedagogia do Oprimido">Pedagogia do Oprimido</option>
+                    <option value="Política e Educação">Política e Educação</option>
+                    <option value="Por Uma Pedagogia da Pergunta">Por Uma Pedagogia da Pergunta</option>
+                    <option value="Professora Sim, Tia Não">Professora Sim, Tia Não</option>
+                </select>
+
             </div>
 
             <div class="resposta" id="resposta"><em>A palavra verdadeira transforma o mundo...</em></div>
@@ -243,6 +277,7 @@ async def ask(request: Request):
     try:
         data     = await request.json()
         pergunta_raw = data.get("pergunta", "").strip()
+        livro        = data.get("livro", "todos").strip() 
         pergunta = sanitizar_pergunta(pergunta_raw)
 
         if not pergunta:
@@ -251,13 +286,14 @@ async def ask(request: Request):
         if pergunta.lower() in ["sair", "exit", "tchau", "obrigado", "ok", "quit"]:
             return JSONResponse({"resposta": random.choice(DESPEDIDA_JS)})
 
-        contexto  = buscar_contexto(pergunta, biblioteca_freire)
+        contexto  = buscar_contexto(pergunta, biblioteca_freire, livro=livro)  
         mensagens = montar_prompt(pergunta, contexto)
         resposta_raw, ia_nome = ai_provider.chat(mensagens)
         resposta_limpa = limpar_resposta(resposta_raw)
         # print("-" * 50)        
+        # print("LIVRO:", livro)
         # print("PERGUNTA:", pergunta)
-        # print("CONTEXTO:", contexto[:500])
+        # print("CONTEXTO:", contexto[:50])
         # print("RESPOSTA BRUTA:\n", resposta_raw)
         # print("RESPOSTA LIMPA:\n", resposta_limpa)       
         # print("-" * 50)
