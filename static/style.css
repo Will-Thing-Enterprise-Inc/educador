@@ -233,6 +233,54 @@ body {
     font-weight: 600;
 }
 
+/* --- LIVRO SELECT --- */
+.livro-select-container {
+    margin-bottom: 0.2rem;
+}
+
+.livro-select-container select {
+    width: 100%;
+    padding: 0.3rem 1.2rem;
+    border: 1.5px solid #ddd0c4;
+    border-radius: 50px;
+    background: white;
+    font-size: 0.82rem;
+    font-family: 'Inter', sans-serif;
+    color: #3a2010;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a04020' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1.2rem center;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.livro-select-container {
+    margin-top: 0.6rem;      
+    margin-bottom: 0.6rem;   
+}
+
+.livro-select-container select option:first-child {
+    color: #b8a090;        /* ← mesma cor do placeholder */
+}
+
+
+.livro-select-container select {
+    font-family: 'Inter', sans-serif;
+    color: #3a2010;        /* ← mesma cor do input */
+    font-size: 0.82rem;
+}
+.livro-select-container select:focus {
+    border-color: #a04020;
+    box-shadow: 0 0 0 3px rgba(160,64,32,0.08);
+}
+
+.livro-select-container select:hover {
+    border-color: #c4a898;
+}
+
 /* --- RESPONSIVO --- */
 @media (max-width: 768px) {
     body { padding: 0.5rem; }

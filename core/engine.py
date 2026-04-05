@@ -113,28 +113,56 @@ def carregar_biblioteca():
 # ============================================
 # Buscar Contexto
 # ============================================
+# ============================================
+# Buscar Contexto
+# ============================================
 def buscar_contexto(pergunta: str, biblioteca, top_k: int = 3,
-                    threshold: float = 0.05) -> str:
+                    threshold: float = 0.05, livro: str = "") -> str:
+
     if not _vectorizer or _corpus_matrix is None:
         return "Nenhum ensinamento encontrado."
 
-    vetor       = _vectorizer.transform([pergunta])
-    scores      = cosine_similarity(vetor, _corpus_matrix).flatten()
-    indices_top = np.argsort(scores)[-top_k:][::-1]
+    # Filtrar por livro se não for "todos" nem vazio
+    if livro and livro != "todos":
+        indices_livro = [
+            i for i, item in enumerate(biblioteca)
+            if livro.lower() in item.get("fonte", "").lower()
+        ]
+        if not indices_livro:
+            return "VAZIO"
 
-    trechos = []
-    for i in indices_top:
-        if scores[i] < threshold:
-            continue
-        item  = biblioteca[i]
-        livro = item.get("fonte", "Pedagogia do Oprimido")
-        trechos.append(f"[FONTE: Paulo Freire — '{livro}']\n{item['texto']}")
+        matriz_filtrada = _corpus_matrix[indices_livro]
+        vetor  = _vectorizer.transform([pergunta])
+        scores = cosine_similarity(vetor, matriz_filtrada).flatten()
+        indices_top  = np.argsort(scores)[-top_k:][::-1]
+        indices_reais = [indices_livro[i] for i in indices_top]
+
+        trechos = []
+        for idx, i in enumerate(indices_reais):
+            if scores[indices_top[idx]] < threshold:
+                continue
+            item  = biblioteca[i]
+            fonte = item.get("fonte", "Pedagogia do Oprimido")
+            trechos.append(f"[FONTE: Paulo Freire — '{fonte}']\n{item['texto']}")
+
+    else:
+        # "todos" ou vazio — comportamento original
+        vetor       = _vectorizer.transform([pergunta])
+        scores      = cosine_similarity(vetor, _corpus_matrix).flatten()
+        indices_top = np.argsort(scores)[-top_k:][::-1]
+
+        trechos = []
+        for i in indices_top:
+            if scores[i] < threshold:
+                continue
+            item  = biblioteca[i]
+            fonte = item.get("fonte", "Pedagogia do Oprimido")
+            trechos.append(f"[FONTE: Paulo Freire — '{fonte}']\n{item['texto']}")
 
     if not trechos:
         return "VAZIO"
     return "\n\n---\n\n".join(trechos)
-
-
+    
 # ============================================
 # Montar Prompt
 # ============================================

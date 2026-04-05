@@ -125,6 +125,14 @@ async function fazerPergunta() {
     const textoRaw = input.value.trim();
     if (!textoRaw) return;
 
+    const livroSelect = document.getElementById('livro-select');
+    const livroEscolhido = livroSelect ? livroSelect.value : "";
+    
+    if (!livroEscolhido) {
+        respostaDiv.innerHTML = '<em>Companheiro, escolha primeiro um livro para dialogarmos.</em>';
+        return;
+    }
+
     if (PALAVRAS_SAIDA.includes(textoRaw.toLowerCase())) {
         const despedida = randomMsg(window.DESPEDIDA_JS);
         respostaDiv.innerHTML = `<em>${despedida}</em>`;
@@ -142,7 +150,7 @@ async function fazerPergunta() {
         const response = await fetch('/ask', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ pergunta: textoRaw })
+            body:    JSON.stringify({ pergunta: textoRaw, livro: livroEscolhido })
         });
 
         const data     = await response.json();
