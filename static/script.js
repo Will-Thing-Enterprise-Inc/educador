@@ -196,7 +196,7 @@ input.addEventListener('keypress', (e) => {
 });
 
 function compartilharWhatsApp(texto) {
-    const msg = encodeURIComponent("Paulo Freire:\n\n" + texto + "\n\npaulo-freire.willthing.ia.br");
+    const msg = encodeURIComponent("Paulo Freire IA:\n\n" + texto + "\n\npaulo-freire.willthing.ia.br");
     window.open(`https://wa.me/?text=${msg}`, 'whatsapp_share');
 }
 

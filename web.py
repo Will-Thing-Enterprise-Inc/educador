@@ -151,7 +151,7 @@ HTML_PAGE = f"""
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Paulo Freire · Pedagogia do Oprimido</title>
+    <title>Paulo Freire IA · Pedagogia do Oprimido</title>
     <link rel="icon" type="image/x-icon" href="/static/img/favicon.ico">
     <link rel="stylesheet" href="/static/style.css?v=2">
 </head>
@@ -160,10 +160,10 @@ HTML_PAGE = f"""
 
         <div class="header-card">
             <div class="header-info">
-                <h1>Paulo Freire</h1>
+                <h1>Paulo Freire IA</h1>
                 <div class="sub">pedagogia do oprimido</div>
             </div>
-            {"<div class='header-avatar'><img src='" + AVATAR_B64 + "' alt='Paulo Freire'></div>" if AVATAR_B64 else ""}
+            {"<div class='header-avatar'><img src='" + AVATAR_B64 + "' alt='Paulo Freire ia'></div>" if AVATAR_B64 else ""}
         </div>
 
         <div class="divider-stripe"></div>
