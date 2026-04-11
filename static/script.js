@@ -1,5 +1,8 @@
 const PALAVRAS_SAIDA = ['sair', 'exit', 'quit', 'tchau', 'obrigado', 'ok'];
 
+// ID único por sessão — gerado ao abrir a aba, some ao fechar
+const SESSION_ID = crypto.randomUUID();
+
 const input       = document.getElementById('pergunta');
 const respostaDiv = document.getElementById('resposta');
 const btnMic      = document.getElementById('btn-mic');
@@ -125,13 +128,14 @@ async function fazerPergunta() {
     const textoRaw = input.value.trim();
     if (!textoRaw) return;
 
-    const livroSelect = document.getElementById('livro-select');
-    const livroEscolhido = livroSelect ? livroSelect.value : "";
-    
-    if (!livroEscolhido) {
-        respostaDiv.innerHTML = '<em>Companheiro, escolha primeiro um livro para dialogarmos.</em>';
+    // Validação de 400 chars — cobre microfone (maxlength não cobre)
+    if (textoRaw.length > 400) {
+        respostaDiv.innerHTML = '<em>Companheiro, a pergunta é longa demais. Simplifique o caminho do diálogo.</em>';
         return;
     }
+
+    const livroSelect    = document.getElementById('livro-select');
+    const livroEscolhido = livroSelect ? livroSelect.value : "todos";
 
     if (PALAVRAS_SAIDA.includes(textoRaw.toLowerCase())) {
         const despedida = randomMsg(window.DESPEDIDA_JS);
@@ -144,13 +148,25 @@ async function fazerPergunta() {
 
     input.disabled    = true;
     input.placeholder = 'Freire reflete...';
-    respostaDiv.innerHTML = `<em>${randomMsg(window.AGUARDANDO_JS)}<br><br>aguarde...</em>`;
+
+    // Rotação de mensagens enquanto aguarda — troca a cada 2.5s
+    const _msgs = [...window.AGUARDANDO_JS].sort(() => Math.random() - 0.5);
+    let _idx = 0;
+    respostaDiv.innerHTML = `<em>${_msgs[0]}</em>`;
+    const _rotacao = setInterval(() => {
+        _idx = (_idx + 1) % _msgs.length;
+        respostaDiv.innerHTML = `<em>${_msgs[_idx]}</em>`;
+    }, 2500);
 
     try {
         const response = await fetch('/ask', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ pergunta: textoRaw, livro: livroEscolhido })
+            body:    JSON.stringify({
+                pergunta:   textoRaw,
+                livro:      livroEscolhido,
+                session_id: SESSION_ID,
+            })
         });
 
         const data     = await response.json();
@@ -159,6 +175,8 @@ async function fazerPergunta() {
         const respostaHTML = resposta
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/^\* (.+)/gm, '<li>$1</li>')
+            .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
             .replace(/\n\n/g, '</p><p>')
             .replace(/\n/g, '<br>')
             .replace(/\. ([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÀÇ])/g, '.</p><p>$1');
@@ -177,13 +195,14 @@ async function fazerPergunta() {
             if (falando || window.speechSynthesis.paused) pausarVoz();
             else falar(resposta);
         });
-        document.getElementById('btn-parar').addEventListener('click', () => pararVoz());
+        document.getElementById('btn-parar').addEventListener('click',    () => pararVoz());
         document.getElementById('btn-whatsapp').addEventListener('click', () => compartilharWhatsApp(resposta));
-        document.getElementById('btn-email').addEventListener('click', () => compartilharEmail(resposta));
+        document.getElementById('btn-email').addEventListener('click',    () => compartilharEmail(resposta));
 
     } catch (error) {
         respostaDiv.innerHTML = '<em>(a voz encontrou um obstáculo...)</em>';
     } finally {
+        clearInterval(_rotacao);
         input.disabled    = false;
         input.value       = '';
         input.placeholder = 'Dialogue com Freire...';

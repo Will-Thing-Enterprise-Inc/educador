@@ -26,22 +26,25 @@ except ImportError as e:
     sys.exit(1)
 
 
-RATE_LIMIT = 10        # máx requisições
-JANELA_SEG = 60        # por minuto
-
+# ============================================
+# Rate Limit
+# ============================================
+RATE_LIMIT = 10
+JANELA_SEG = 60
 _contadores: dict = defaultdict(list)
 
 def checar_rate_limit(ip: str) -> bool:
     agora = time.time()
-    historico = _contadores[ip]
-    # Remove entradas antigas
-    _contadores[ip] = [t for t in historico if agora - t < JANELA_SEG]
+    _contadores[ip] = [t for t in _contadores[ip] if agora - t < JANELA_SEG]
     if len(_contadores[ip]) >= RATE_LIMIT:
         return False
     _contadores[ip].append(agora)
     return True
 
 
+# ============================================
+# Sanitização
+# ============================================
 PADROES_INJECTION = [
     r"###\s*\w+",
     r"REGRAS_FREIRE",
@@ -57,41 +60,43 @@ PADROES_INJECTION = [
     r"sem\s+(restrições|limites|regras)",
     r"prompt\s*(original|do sistema|interno)",
     r"repita\s+as\s+(regras|instruções)",
-    r"ignor\w*\s+(as instruções|as regras|tudo|acima)", 
-    r"você pode",                                             
+    r"ignor\w*\s+(as instruções|as regras|tudo|acima)",
+    r"você pode",
 ]
 
 MARCADORES_BLOQUEIO = [
     "BLOQUEADO", "VAZIO",
-    "não tenho elementos",      # fallback do próprio prompt
-    "ERRO_SISTEMA"                 # resposta de erro
+    "não tenho elementos",
+    "ERRO_SISTEMA",
 ]
 
 def is_bloqueado(texto: str) -> bool:
     t = texto.upper()
     return any(m.upper() in t for m in MARCADORES_BLOQUEIO)
 
-
 def sanitizar_pergunta(texto: str) -> str | None:
     texto = texto.strip()
-    
     if len(texto) > 400:
-        return None  # muito longo — rejeitar
-    
+        return None
     for padrao in PADROES_INJECTION:
         if re.search(padrao, texto, re.IGNORECASE):
             return None
-    
     return texto
+
+def is_local(request: Request) -> bool:
+    host = request.headers.get("host", "")
+    return host.startswith("localhost") or host.startswith("127.0.0.1")
+
 
 # ============================================
 # Inicialização
 # ============================================
 app = FastAPI()
 
-ai_provider      = FreeAIProvider()
+ai_provider       = FreeAIProvider()
 biblioteca_freire = carregar_biblioteca()
 
+# Memória temporária em RAM — por sessão
 conversation_memory = {}
 
 
@@ -104,7 +109,6 @@ def resposta_bloqueio() -> str:
         "Companheiro, pronunciar o mundo exige compromisso com os oprimidos.",
     ]
     return random.choice(frases)
-
 
 def limpar_resposta(texto: str) -> str:
     return texto.replace("(pausa)", "").lstrip("#").strip()
@@ -143,6 +147,11 @@ AGUARDANDO_JS = [
     "A consciência crítica desperta...",
     "O oprimido toma a palavra...",
     "A educação se faz liberdade...",
+    "O tema gerador surge...",
+    "A leitura do mundo começa...",
+    "A conscientização avança...",
+    "O diálogo transforma...",
+    "A palavra verdadeira ressoa...",
 ]
 
 HTML_PAGE = f"""
@@ -172,9 +181,8 @@ HTML_PAGE = f"""
 
             <div class="livro-select-container">
 
-
             <div class="input-container">
-                <input type="text" id="pergunta" placeholder="Dialogue com Freire..." autofocus autocomplete="off" spellcheck="false">
+                <input type="text" id="pergunta" placeholder="Dialogue com Freire..." autofocus autocomplete="off" spellcheck="false" maxlength="400">
                 <button id="btn-mic" title="Falar">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
@@ -185,8 +193,9 @@ HTML_PAGE = f"""
                 </button>
                 <button id="btn-enviar" onclick="fazerPergunta()">&#10148;</button>
             </div>
+
                 <select id="livro-select">
-                    <option value="todos">Todos os livros </option>
+                    <option value="todos">Todos os livros</option>
                     <option value="A África Ensinando a Gente">A África Ensinando a Gente</option>
                     <option value="A Importância do Ato de Ler">A Importância do Ato de Ler</option>
                     <option value="À Sombra Dessa Mangueira">À Sombra Dessa Mangueira</option>
@@ -246,18 +255,15 @@ HTML_PAGE = f"""
 async def get_index():
     return HTML_PAGE
 
-
 @app.head("/")
 async def head_index():
     return Response(status_code=200)
-
 
 @app.get("/aviso-legal/", response_class=HTMLResponse)
 async def get_aviso_legal():
     path = os.path.join(BASE_DIR, "static", "legal", "aviso-legal.html")
     with open(path, encoding="utf-8") as f:
         return f.read()
-
 
 @app.get("/copyright/", response_class=HTMLResponse)
 async def get_copyright():
@@ -268,17 +274,19 @@ async def get_copyright():
 
 @app.post("/ask")
 async def ask(request: Request):
+    DEBUG = is_local(request)
+
     ip = request.client.host
     if not checar_rate_limit(ip):
         return JSONResponse(
             {"resposta": "Companheiro, o diálogo precisa de pausa para reflexão."},
             status_code=429
-        )    
+        )
     try:
-        data     = await request.json()
+        data         = await request.json()
         pergunta_raw = data.get("pergunta", "").strip()
-        livro        = data.get("livro", "todos").strip() 
-        pergunta = sanitizar_pergunta(pergunta_raw)
+        livro        = data.get("livro", "todos").strip()
+        pergunta     = sanitizar_pergunta(pergunta_raw)
 
         if not pergunta:
             return JSONResponse({"resposta": resposta_bloqueio()})
@@ -286,21 +294,51 @@ async def ask(request: Request):
         if pergunta.lower() in ["sair", "exit", "tchau", "obrigado", "ok", "quit"]:
             return JSONResponse({"resposta": random.choice(DESPEDIDA_JS)})
 
-        contexto  = buscar_contexto(pergunta, biblioteca_freire, livro=livro)  
+        # Sessão e histórico por usuário
+        session_id        = data.get("session_id", ip)
+        historico_usuario = conversation_memory.get(session_id, [])
+
+        # Sorteia provider e obtém top_k antes da busca
+        provider_nome, provider_cfg = ai_provider.sortear_provider()
+        top_k = provider_cfg.get("top_k", 5)
+
+        contexto  = buscar_contexto(pergunta, biblioteca_freire, top_k=top_k, livro=livro)
         mensagens = montar_prompt(pergunta, contexto)
-        resposta_raw, ia_nome = ai_provider.chat(mensagens)
+
+        # Injeta histórico entre system e pergunta atual
+        if historico_usuario:
+            msgs_historico = []
+            for troca in historico_usuario[-3:]:
+                msgs_historico.append({"role": "user",      "content": troca["pergunta"]})
+                msgs_historico.append({"role": "assistant", "content": troca["resposta"]})
+            prompt_completo = [mensagens[0]] + msgs_historico + [mensagens[-1]]
+        else:
+            prompt_completo = mensagens
+
+        resposta_raw, ia_nome = ai_provider.chat(prompt_completo, provider_nome=provider_nome)
         resposta_limpa = limpar_resposta(resposta_raw)
-        # print("-" * 50)        
-        # print("LIVRO:", livro)
-        # print("PERGUNTA:", pergunta)
-        # print("CONTEXTO:", contexto[:50])
-        # print("RESPOSTA BRUTA:\n", resposta_raw)
-        # print("RESPOSTA LIMPA:\n", resposta_limpa)       
-        # print("-" * 50)
-        
+
+        if DEBUG:
+            print("-" * 50)
+            print("      IA:", ia_nome)
+            print("   LIVRO:", livro)
+            print("PERGUNTA:", pergunta)
+            print("CONTEXTO:", contexto[:80])
 
         if is_bloqueado(resposta_limpa):
             return JSONResponse({"resposta": resposta_bloqueio()})
+
+        # Salva troca na memória da sessão
+        if session_id not in conversation_memory:
+            conversation_memory[session_id] = []
+        conversation_memory[session_id].append({
+            "pergunta": pergunta[:150],
+            "resposta": resposta_limpa[:200],
+        })
+        if len(conversation_memory[session_id]) > 10:
+            conversation_memory[session_id] = conversation_memory[session_id][-10:]
+        if len(conversation_memory) > 1000:
+            conversation_memory.clear()
 
         resposta_exibida = f"{resposta_limpa}\n\n— {ia_nome}"
         return JSONResponse({"resposta": resposta_exibida})
