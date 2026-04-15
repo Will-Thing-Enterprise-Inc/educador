@@ -37,13 +37,19 @@ class FreeAIProvider:
             ("sambanova", "SambaNova", "Llama 3.1 8B · SambaNova",   self._sambanova_chat),
         ]
 
+
+
     def sortear_provider(self) -> tuple[str, dict]:
         """
-        Gemini tem prioridade — gratuito e de alta qualidade.
+        Ollama local tem prioridade máxima — rápido e sem custo.
+        Gemini como primeiro fallback externo.
         Groq, Cerebras e SambaNova como fallback gratuito.
-        Anthropic apenas se nenhum outro estiver disponível — economiza créditos.
-        Retorna (nome_do_provider, config) para uso ANTES de chamar a IA.
+        Anthropic apenas se nenhum outro estiver disponível.
         """
+        # Força Ollama local sempre
+        if self.keys.get("ollama"):
+            return "Ollama", CONFIGS["Ollama"]
+
         # Gemini primeiro — gratuito e melhor qualidade
         if self.keys.get("gemini"):
             cfg = CONFIGS.get("Gemini", {"top_k": 5})
@@ -66,6 +72,9 @@ class FreeAIProvider:
             return "Anthropic", cfg
 
         return "Fallback", {"top_k": 3}
+
+
+
 
     def _ajustar_system(self, messages: list, ia_nome: str) -> list:
         estilo = ESTILOS_IA.get(ia_nome, "")

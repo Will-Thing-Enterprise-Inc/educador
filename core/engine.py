@@ -100,6 +100,7 @@ REGRAS_FREIRE = (
 # Estilos por IA
 # ============================================
 ESTILOS_IA = {
+    "Ollama":    "### SEU ESTILO ###\nSeja reflexivo e pausado. Convide à consciência crítica.\n\n",
     "Anthropic": "### SEU ESTILO ###\nSeja denso e preciso. Cada palavra carrega peso — sem ornamentos, sem redundância.\n\n",
     "Gemini":    "### SEU ESTILO ###\nSeja criativo e instigante. Use imagens do cotidiano popular.\n\n",
     "Groq":      "### SEU ESTILO ###\nSeja direto e combativo. Uma ideia central, sem rodeios.\n\n",
@@ -147,7 +148,7 @@ def carregar_biblioteca():
 # Preserva filtro por livro — lógica central do Paulo Freire IA
 # ============================================
 def buscar_contexto(pergunta: str, biblioteca, top_k: int = 5,
-                    threshold: float = 0.05, livro: str = "") -> str:
+                    threshold: float = 0.02, livro: str = "") -> str:
 
     if not _vectorizer or _corpus_matrix is None:
         return "Nenhum ensinamento encontrado."
