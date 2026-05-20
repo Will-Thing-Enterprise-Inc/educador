@@ -260,7 +260,7 @@ class FreeAIProvider:
 
     def _sambanova_chat(self, messages, temperature, max_tokens, top_p, freq_pen, pres_pen):
         payload = {
-            "model": "Meta-Llama-3.1-8B-Instruct",
+            "model": "Meta-Llama-3.3-70B-Instruct",
             "messages": messages,
             "temperature": temperature,
             "max_tokens": max_tokens,

@@ -215,12 +215,12 @@ input.addEventListener('keypress', (e) => {
 });
 
 function compartilharWhatsApp(texto) {
-    const msg = encodeURIComponent("Paulo Freire IA:\n\n" + texto + "\n\npaulo-freire.willthing.ia.br");
+    const msg = encodeURIComponent("Paulo Freire IA:\n\n" + texto + "\n\nwww.willthing.ia.br/paulo-freire");
     window.open(`https://wa.me/?text=${msg}`, 'whatsapp_share');
 }
 
 function compartilharEmail(texto) {
     const assunto = encodeURIComponent("Paulo Freire — Pedagogia do Oprimido");
-    const corpo   = encodeURIComponent("Freire:\n\n" + texto + "\n\npaulo-freire.willthing.ia.br");
+    const corpo   = encodeURIComponent("Freire:\n\n" + texto + "\n\nwww.willthing.ia.br/paulo-freire");
     window.open(`mailto:?subject=${assunto}&body=${corpo}`, '_blank');
 }
