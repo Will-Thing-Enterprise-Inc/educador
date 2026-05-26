@@ -33,7 +33,7 @@ class FreeAIProvider:
             ("anthropic", "Anthropic", "Claude Haiku · Anthropic",   self._anthropic_chat),
             ("gemini",    "Gemini",    "Gemini 2.5 Flash · Google",  self._gemini_chat),
             ("groq",      "Groq",      "Llama 3.3 70B · Groq",       self._groq_chat),
-            ("cerebras",  "Cerebras",  "Llama 3.1 8B · Cerebras",    self._cerebras_chat),
+            ("cerebras",  "Cerebras",  "gpt-oss-120b · Cerebras",    self._cerebras_chat),
             ("sambanova", "SambaNova", "Llama 3.1 8B · SambaNova",   self._sambanova_chat),
         ]
 
