@@ -160,7 +160,7 @@ HTML_PAGE = f"""
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Paulo Freire IA · Pedagogia do Oprimido</title>
+    <title>Educador IA · Pedagogia do Oprimido</title>
     <link rel="icon" type="image/x-icon" href="/static/img/favicon.ico">
     <link rel="stylesheet" href="/static/style.css?v=2">
 </head>
@@ -169,10 +169,10 @@ HTML_PAGE = f"""
 
         <div class="header-card">
             <div class="header-info">
-                <h1>Paulo Freire IA</h1>
+                <h1>Educador IA</h1>
                 <div class="sub">pedagogia do oprimido</div>
             </div>
-            {"<div class='header-avatar'><img src='" + AVATAR_B64 + "' alt='Paulo Freire ia'></div>" if AVATAR_B64 else ""}
+            {"<div class='header-avatar'><img src='" + AVATAR_B64 + "' alt='Educador ia'></div>" if AVATAR_B64 else ""}
         </div>
 
         <div class="divider-stripe"></div>
@@ -182,7 +182,7 @@ HTML_PAGE = f"""
             <div class="livro-select-container">
 
             <div class="input-container">
-                <input type="text" id="pergunta" placeholder="Dialogue com Freire..." autofocus autocomplete="off" spellcheck="false" maxlength="400">
+                <input type="text" id="pergunta" placeholder="Dialogue com Educador..." autofocus autocomplete="off" spellcheck="false" maxlength="400">
                 <button id="btn-mic" title="Falar">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>

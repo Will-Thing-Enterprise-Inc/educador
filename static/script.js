@@ -1,7 +1,7 @@
 const PALAVRAS_SAIDA = ['sair', 'exit', 'quit', 'tchau', 'obrigado', 'ok'];
 
 // ID único por sessão — gerado ao abrir a aba, some ao fechar
-const SESSION_ID = crypto.randomUUID();
+const SESSION_ID = Math.random().toString(36).slice(2) + Date.now();
 
 const input       = document.getElementById('pergunta');
 const respostaDiv = document.getElementById('resposta');
@@ -81,7 +81,7 @@ function iniciarMicrofone() {
         btnMic.classList.add('ouvindo');
         btnMic.title      = 'Solte para enviar';
         input.placeholder = 'Ouvindo...';
-        respostaDiv.innerHTML = '<em>Freire ouvindo...</em>';
+        respostaDiv.innerHTML = '<em>Educador ouvindo...</em>';
     };
 
     recognition.onresult = (e) => {
@@ -92,7 +92,7 @@ function iniciarMicrofone() {
         reconhecendo = false;
         btnMic.classList.remove('ouvindo');
         btnMic.title      = 'Falar';
-        input.placeholder = 'Dialogue com Freire...';
+        input.placeholder = 'Dialogue com Educador...';
         respostaDiv.innerHTML = '<em>Não consegui ouvir — tente novamente.</em>';
     };
 
@@ -100,7 +100,7 @@ function iniciarMicrofone() {
         reconhecendo = false;
         btnMic.classList.remove('ouvindo');
         btnMic.title      = 'Falar';
-        input.placeholder = 'Dialogue com Freire...';
+        input.placeholder = 'Dialogue com Educador...';
         if (input.value.trim()) fazerPergunta();
     };
 
@@ -147,7 +147,7 @@ async function fazerPergunta() {
     }
 
     input.disabled    = true;
-    input.placeholder = 'Freire reflete...';
+    input.placeholder = 'Educador reflete...';
 
     // Rotação de mensagens enquanto aguarda — troca a cada 2.5s
     const _msgs = [...window.AGUARDANDO_JS].sort(() => Math.random() - 0.5);
@@ -205,7 +205,7 @@ async function fazerPergunta() {
         clearInterval(_rotacao);
         input.disabled    = false;
         input.value       = '';
-        input.placeholder = 'Dialogue com Freire...';
+        input.placeholder = 'Dialogue com Educador...';
         input.focus();
     }
 }
@@ -215,12 +215,12 @@ input.addEventListener('keypress', (e) => {
 });
 
 function compartilharWhatsApp(texto) {
-    const msg = encodeURIComponent("Paulo Freire IA:\n\n" + texto + "\n\nwww.willthing.ia.br/paulo-freire");
+    const msg = encodeURIComponent("Educador IA:\n\n" + texto + "\n\nwww.willthing.ia.br/educador");
     window.open(`https://wa.me/?text=${msg}`, 'whatsapp_share');
 }
 
 function compartilharEmail(texto) {
-    const assunto = encodeURIComponent("Paulo Freire — Pedagogia do Oprimido");
-    const corpo   = encodeURIComponent("Freire:\n\n" + texto + "\n\nwww.willthing.ia.br/paulo-freire");
+    const assunto = encodeURIComponent("Educador IA — Pedagogia do Oprimido");
+    const corpo   = encodeURIComponent("Educador IA:\n\n" + texto + "\n\nwww.willthing.ia.br/educador");
     window.open(`mailto:?subject=${assunto}&body=${corpo}`, '_blank');
 }
