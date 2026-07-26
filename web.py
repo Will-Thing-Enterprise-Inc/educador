@@ -11,6 +11,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 from collections import defaultdict
+from core.contador import incrementar, total
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if BASE_DIR not in sys.path:
@@ -32,6 +33,13 @@ except ImportError as e:
 RATE_LIMIT = 10
 JANELA_SEG = 60
 _contadores: dict = defaultdict(list)
+
+JARDIM_NOME = os.getenv("JARDIM_NOME", "educador")
+
+def _e_bot_monitor(request: Request) -> bool:
+    """Filtra pings de monitoramento (ex: UptimeRobot) — não são visitas reais."""
+    ua = request.headers.get("user-agent", "").lower()
+    return "uptimerobot" in ua
 
 def checar_rate_limit(ip: str) -> bool:
     agora = time.time()
@@ -228,12 +236,18 @@ HTML_PAGE = f"""
             <div class="resposta" id="resposta"><em>A palavra verdadeira transforma o mundo...</em></div>
         </div>
 
+
         <footer class="footer">
-            <p class="gassho-quote">«O diálogo é este encontro dos homens, mediatizados pelo mundo, para pronunciá-lo,<br>não se esgotando, portanto, na relação eu-tu.»<br><strong>— Paulo Freire</strong></p>
+            <p class="gassho-quote">«Quando a educação não é libertadora, o sonho do oprimido é ser o opressor» <br><strong>(Paulo Freire).</strong></p>
             <p style="margin-top:12px; font-size:11px; letter-spacing:0.08em;">
-                <a href="/aviso-legal/" style="color:#a07060; text-decoration:none;">Aviso Legal</a>
-                &nbsp;·&nbsp;
-                <a href="/copyright/" style="color:#a07060; text-decoration:none;">Copyright</a>
+            <a href="/aviso-legal/" style="color:#a07060; text-decoration:none;">Aviso Legal</a>
+            &nbsp;·&nbsp;
+            <a href="/copyright/" style="color:#a07060; text-decoration:none;">Copyright</a>
+            &nbsp;·&nbsp;
+            <a href="mailto:contato@willthing.ia.br" style="color:#a07060; text-decoration:none;">Contato</a>
+            </p>
+            <p style="margin-top:8px; font-size:11px; letter-spacing:0.08em; color:#a07060;">
+                <span id="contador-visitas">…</span> companheiros já passaram por este jardim.
             </p>
         </footer>
 
@@ -243,7 +257,17 @@ HTML_PAGE = f"""
         window.AGUARDANDO_JS = {json.dumps(AGUARDANDO_JS)};
     </script>
     <script src="/static/script.js"></script>
-</body>
+    <script>
+        fetch('/contador')
+            .then(r => r.json())
+            .then(d => {{
+                document.getElementById('contador-visitas').textContent = d.visitas;
+            }})
+            .catch(() => {{
+                document.getElementById('contador-visitas').textContent = '∞';
+            }});
+    </script>
+</body>        
 </html>
 """
 
@@ -252,12 +276,20 @@ HTML_PAGE = f"""
 # Rotas
 # ============================================
 @app.get("/", response_class=HTMLResponse)
-async def get_index():
+async def get_index(request: Request):
+    if not _e_bot_monitor(request):
+        incrementar(JARDIM_NOME)
     return HTML_PAGE
+
 
 @app.head("/")
 async def head_index():
     return Response(status_code=200)
+
+
+@app.get("/contador")
+async def get_contador():
+    return JSONResponse({"jardim": JARDIM_NOME, "visitas": total(JARDIM_NOME)})
 
 @app.get("/aviso-legal/", response_class=HTMLResponse)
 async def get_aviso_legal():
