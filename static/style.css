@@ -7,10 +7,11 @@ body {
     font-family: 'Inter', sans-serif;
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;  /* ancora no topo */
     min-height: 100vh;
     margin: 0;
-    padding: 1rem;
+    padding: 1rem; padding-top: 3vh;
+    padding-top: 5vh;         /* recria o respiro que o center dava */
     color: #3a2010;
 }
 

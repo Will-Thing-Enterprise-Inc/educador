@@ -6,6 +6,61 @@ const SESSION_ID = Math.random().toString(36).slice(2) + Date.now();
 const input       = document.getElementById('pergunta');
 const respostaDiv = document.getElementById('resposta');
 const btnMic      = document.getElementById('btn-mic');
+let vozEscolhida = null;
+
+//--------------------------------------------
+function carregarVozes() {
+    const vozes = window.speechSynthesis.getVoices();
+    if (!vozes.length) return;
+
+    const candidatas = vozes.filter(v => v.lang.toLowerCase().startsWith('pt'));
+
+    vozEscolhida =
+        candidatas.find(v => /google/i.test(v.name)) ||
+        candidatas.find(v => /natural|premium|enhanced/i.test(v.name)) ||
+        candidatas.find(v => v.lang.toLowerCase() === 'pt-br') ||
+        candidatas[0] ||
+        null;
+}
+
+if (window.speechSynthesis) {
+    carregarVozes();
+    window.speechSynthesis.onvoiceschanged = carregarVozes; // vozes carregam de forma assíncrona
+}
+
+// ============================================
+// CONTADORES - SALVOS E FUNCIONANDO
+// ============================================
+function atualizarContadores() {
+    fetch('/contador')
+        .then(r => {
+            if (!r.ok) throw new Error('Erro na requisição');
+            return r.json();
+        })
+        .then(d => {
+            const visitaEl = document.getElementById('contador-visitas');
+            const perguntaEl = document.getElementById('contador-perguntas');
+            
+            if (visitaEl) {
+                visitaEl.textContent = d.visitas || '0';
+            }
+            if (perguntaEl) {
+                perguntaEl.textContent = d.perguntas || '0';
+            }
+            
+        })
+        .catch(err => {
+            // Fallback: mostrar 0 se não conseguir buscar
+            const visitaEl = document.getElementById('contador-visitas');
+            const perguntaEl = document.getElementById('contador-perguntas');
+            if (visitaEl && !visitaEl.textContent.match(/^\d+$/)) {
+                visitaEl.textContent = '0';
+            }
+            if (perguntaEl && !perguntaEl.textContent.match(/^\d+$/)) {
+                perguntaEl.textContent = '0';
+            }
+        });
+}
 
 function randomMsg(arr) {
     return arr[Math.floor(Math.random() * arr.length)];
@@ -29,6 +84,7 @@ function falar(texto) {
     window.speechSynthesis.cancel();
     const fala = new SpeechSynthesisUtterance(limparParaVoz(texto));
     fala.lang  = 'pt-BR';
+    if (vozEscolhida) fala.voice = vozEscolhida;   
     fala.rate  = 0.9;
     fala.pitch = 1.0;
     fala.onstart = () => { falando = true;  atualizarBotaoVoz(); };
@@ -88,12 +144,12 @@ function iniciarMicrofone() {
         input.value = e.results[0][0].transcript;
     };
 
-    recognition.onerror = () => {
+    recognition.onerror = (e) => {
         reconhecendo = false;
         btnMic.classList.remove('ouvindo');
         btnMic.title      = 'Falar';
         input.placeholder = 'Dialogue com Educador...';
-        respostaDiv.innerHTML = '<em>Não consegui ouvir — tente novamente.</em>';
+        respostaDiv.innerHTML = `<em>Não consegui ouvir — tente novamente. (${e.error})</em>`;
     };
 
     recognition.onend = () => {
@@ -120,6 +176,8 @@ window.addEventListener('DOMContentLoaded', () => {
         btnMic.addEventListener('mouseup',    pararMicrofone);
         btnMic.addEventListener('touchstart', (e) => { e.preventDefault(); iniciarMicrofone(); }, { passive: false });
         btnMic.addEventListener('touchend',   pararMicrofone);
+        atualizarContadores();                    // ← CARREGA OS CONTADORES AO INICIAR
+        setInterval(atualizarContadores, 30000);  // ← ATUALIZA A CADA 30 SEGUNDOS        
     }
 });
 
@@ -207,6 +265,7 @@ async function fazerPergunta() {
         input.value       = '';
         input.placeholder = 'Dialogue com Educador...';
         input.focus();
+        setTimeout(atualizarContadores, 300);  // ← ATUALIZA APÓS CADA PERGUNTA
     }
 }
 
@@ -215,12 +274,12 @@ input.addEventListener('keypress', (e) => {
 });
 
 function compartilharWhatsApp(texto) {
-    const msg = encodeURIComponent("Educador IA:\n\n" + texto + "\n\nwww.willthing.ia.br/educador");
+    const msg = encodeURIComponent("Educador IA:\n\n" + texto + "\n\neducador.willthing.ia.br");
     window.open(`https://wa.me/?text=${msg}`, 'whatsapp_share');
 }
 
 function compartilharEmail(texto) {
     const assunto = encodeURIComponent("Educador IA — Pedagogia do Oprimido");
-    const corpo   = encodeURIComponent("Educador IA:\n\n" + texto + "\n\nwww.willthing.ia.br/educador");
+    const corpo   = encodeURIComponent("Educador IA:\n\n" + texto + "\n\neducador.willthing.ia.br");
     window.open(`mailto:?subject=${assunto}&body=${corpo}`, '_blank');
 }

@@ -1,3 +1,7 @@
+#
+# /educador/web.py
+#
+
 import sys
 import os
 import random
@@ -5,6 +9,7 @@ import json
 import base64
 import re
 import time
+import psutil
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
@@ -33,21 +38,6 @@ except ImportError as e:
 RATE_LIMIT = 10
 JANELA_SEG = 60
 _contadores: dict = defaultdict(list)
-
-JARDIM_NOME = os.getenv("JARDIM_NOME", "educador")
-
-def _e_bot_monitor(request: Request) -> bool:
-    """Filtra pings de monitoramento (ex: UptimeRobot) — não são visitas reais."""
-    ua = request.headers.get("user-agent", "").lower()
-    return "uptimerobot" in ua
-
-def checar_rate_limit(ip: str) -> bool:
-    agora = time.time()
-    _contadores[ip] = [t for t in _contadores[ip] if agora - t < JANELA_SEG]
-    if len(_contadores[ip]) >= RATE_LIMIT:
-        return False
-    _contadores[ip].append(agora)
-    return True
 
 
 # ============================================
@@ -78,10 +68,84 @@ MARCADORES_BLOQUEIO = [
     "ERRO_SISTEMA",
 ]
 
+# ============================================
+# Lista de Livros
+# ============================================
+PERFIL_NOME = "Educador Paulo Freire"
+
+LIVROS = [
+    "A África Ensinando a Gente",
+    "A Importância do Ato de Ler",
+    "À Sombra Dessa Mangueira",
+    "Ação Cultural para a Liberdade",
+    "Alfabetização - Leitura do Mundo, Leitura da Palavra",
+    "Aprendendo com a Própria História",
+    "Cartas a Cristina",
+    "Cartas à Guiné-Bissau",
+    "Conscientização",
+    "Dialogando com a Própria História",
+    "Educação como Prática da Liberdade",
+    "Educação e Mudança",
+    "Educar com a Mídia",
+    "Extensão ou Comunicação?",
+    "Lições de Casa",
+    "Medo e Ousadia - O Cotidiano do Professor",
+    "Medo e Ousadia",
+    "Partir da Infância",
+    "Pedagogia da Autonomia",
+    "Pedagogia da Esperança",
+    "Pedagogia da Indignação",
+    "Pedagogia do Oprimido",
+    "Política e Educação",
+    "Por Uma Pedagogia da Pergunta",
+    "Professora Sim, Tia Não",
+]
+
+livros_options = "\n".join(
+    f'<option value="{l}">{l}</option>' for l in LIVROS
+)
+
+# Conjunto para validação rápida
+LIVROS_VALIDOS_SET = set(l.lower() for l in LIVROS)
+
+JARDIM_NOME = os.getenv("JARDIM_NOME", "educador")
+NOME_CONTADOR_VISITAS   = f"visitas_{JARDIM_NOME}"    # → "visitas_buko"
+NOME_CONTADOR_PERGUNTAS = f"perguntas_{JARDIM_NOME}"  # → "perguntas_buko"
+
+# Filtro de bots/monitores — mesma disciplina do Chizu
+ROBOTS = [
+    "uptimerobot", "pingdom", "newrelic", "googlebot", "bingbot", "yandex",
+    "facebookexternalhit", "bot", "crawler", "crawl", "spider", "scan",
+    "monitor", "check", "headless", "phantom", "curl", "wget",
+    "python-requests", "go-http-client", "libwww", "scrapy", "axios",
+]
+
+
+#--------------------------------------------
+def _e_bot_monitor(request: Request) -> bool:
+    """Filtra bots e monitores — não são visitas reais."""
+    ua = request.headers.get("user-agent", "").strip().lower()
+    if not ua or "mozilla" not in ua:
+        return True
+    if any(bot in ua for bot in ROBOTS):
+        return True
+    return False
+
+#------------------------------------------
+def checar_rate_limit(ip: str) -> bool:
+    agora = time.time()
+    _contadores[ip] = [t for t in _contadores[ip] if agora - t < JANELA_SEG]
+    if len(_contadores[ip]) >= RATE_LIMIT:
+        return False
+    _contadores[ip].append(agora)
+    return True
+
+#------------------------------------------
 def is_bloqueado(texto: str) -> bool:
     t = texto.upper()
     return any(m.upper() in t for m in MARCADORES_BLOQUEIO)
 
+#------------------------------------------
 def sanitizar_pergunta(texto: str) -> str | None:
     texto = texto.strip()
     if len(texto) > 400:
@@ -91,9 +155,22 @@ def sanitizar_pergunta(texto: str) -> str | None:
             return None
     return texto
 
+#--------------------------------------------
 def is_local(request: Request) -> bool:
-    host = request.headers.get("host", "")
-    return host.startswith("localhost") or host.startswith("127.0.0.1")
+    """Reconhece o IP real por trás de proxy/Cloudflare antes de decidir se é local."""
+    ip = request.headers.get("cf-connecting-ip")
+    if not ip:
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            ip = forwarded.split(",")[0].strip()
+        else:
+            ip = request.client.host
+    return (
+        ip in ("127.0.0.1", "::1") or
+        ip.startswith("192.168.") or
+        ip == "177.104.74.30"
+    )
+
 
 
 # ============================================
@@ -145,12 +222,12 @@ DESPEDIDA_JS = [
 ]
 
 AGUARDANDO_JS = [
-    "Freire reflete...",
+    "Educador reflete...",
     "A consciência se forma...",
     "O diálogo se aprofunda...",
     "A palavra se prepara...",
     "O pensamento crítico emerge...",
-    "Freire escuta o mundo...",
+    "Educador escuta o mundo...",
     "A práxis se organiza...",
     "A consciência crítica desperta...",
     "O oprimido toma a palavra...",
@@ -202,34 +279,12 @@ HTML_PAGE = f"""
                 <button id="btn-enviar" onclick="fazerPergunta()">&#10148;</button>
             </div>
 
-                <select id="livro-select">
-                    <option value="todos">Todos os livros</option>
-                    <option value="A África Ensinando a Gente">A África Ensinando a Gente</option>
-                    <option value="A Importância do Ato de Ler">A Importância do Ato de Ler</option>
-                    <option value="À Sombra Dessa Mangueira">À Sombra Dessa Mangueira</option>
-                    <option value="Ação Cultural para a Liberdade">Ação Cultural para a Liberdade</option>
-                    <option value="Alfabetização - Leitura do Mundo, Leitura da Palavra">Alfabetização - Leitura do Mundo, Leitura da Palavra</option>
-                    <option value="Aprendendo com a Própria História">Aprendendo com a Própria História</option>
-                    <option value="Cartas a Cristina">Cartas a Cristina</option>
-                    <option value="Cartas à Guiné-Bissau">Cartas à Guiné-Bissau</option>
-                    <option value="Conscientização">Conscientização</option>
-                    <option value="Dialogando com a Própria História">Dialogando com a Própria História</option>
-                    <option value="Educação como Prática da Liberdade">Educação como Prática da Liberdade</option>
-                    <option value="Educação e Mudança">Educação e Mudança</option>
-                    <option value="Educar com a Mídia">Educar com a Mídia</option>
-                    <option value="Extensão ou Comunicação?">Extensão ou Comunicação?</option>
-                    <option value="Lições de Casa">Lições de Casa</option>
-                    <option value="Medo e Ousadia - O Cotidiano do Professor">Medo e Ousadia - O Cotidiano do Professor</option>
-                    <option value="Medo e Ousadia">Medo e Ousadia</option>
-                    <option value="Partir da Infância">Partir da Infância</option>
-                    <option value="Pedagogia da Autonomia">Pedagogia da Autonomia</option>
-                    <option value="Pedagogia da Esperança">Pedagogia da Esperança</option>
-                    <option value="Pedagogia da Indignação">Pedagogia da Indignação</option>
-                    <option value="Pedagogia do Oprimido">Pedagogia do Oprimido</option>
-                    <option value="Política e Educação">Política e Educação</option>
-                    <option value="Por Uma Pedagogia da Pergunta">Por Uma Pedagogia da Pergunta</option>
-                    <option value="Professora Sim, Tia Não">Professora Sim, Tia Não</option>
-                </select>
+                <div class="obra-wrap">
+                    <select id="livro-select">
+                        <option value="todos">Todos os livros</option>
+                        {livros_options}
+                    </select>
+                </div>
 
             </div>
 
@@ -247,7 +302,7 @@ HTML_PAGE = f"""
             <a href="mailto:contato@willthing.ia.br" style="color:#a07060; text-decoration:none;">Contato</a>
             </p>
             <p style="margin-top:8px; font-size:11px; letter-spacing:0.08em; color:#a07060;">
-                <span id="contador-visitas">…</span> companheiros já passaram por este jardim.
+                <span id="contador-visitas">…</span> companheiros já passaram por este jardim e <span id="contador-perguntas">…</span> perguntas foram feitas.
             </p>
         </footer>
 
@@ -256,17 +311,7 @@ HTML_PAGE = f"""
         window.DESPEDIDA_JS = {json.dumps(DESPEDIDA_JS)};
         window.AGUARDANDO_JS = {json.dumps(AGUARDANDO_JS)};
     </script>
-    <script src="/static/script.js"></script>
-    <script>
-        fetch('/contador')
-            .then(r => r.json())
-            .then(d => {{
-                document.getElementById('contador-visitas').textContent = d.visitas;
-            }})
-            .catch(() => {{
-                document.getElementById('contador-visitas').textContent = '∞';
-            }});
-    </script>
+    <script src="/static/script.js?v=1"></script>
 </body>        
 </html>
 """
@@ -278,7 +323,7 @@ HTML_PAGE = f"""
 @app.get("/", response_class=HTMLResponse)
 async def get_index(request: Request):
     if not _e_bot_monitor(request):
-        incrementar(JARDIM_NOME)
+        incrementar(NOME_CONTADOR_VISITAS)
     return HTML_PAGE
 
 
@@ -289,7 +334,11 @@ async def head_index():
 
 @app.get("/contador")
 async def get_contador():
-    return JSONResponse({"jardim": JARDIM_NOME, "visitas": total(JARDIM_NOME)})
+    return JSONResponse({
+        "jardim": JARDIM_NOME,
+        "visitas": total(NOME_CONTADOR_VISITAS),
+        "perguntas": total(NOME_CONTADOR_PERGUNTAS),
+    })
 
 @app.get("/aviso-legal/", response_class=HTMLResponse)
 async def get_aviso_legal():
@@ -306,6 +355,7 @@ async def get_copyright():
 
 @app.post("/ask")
 async def ask(request: Request):
+    start_time = time.time()
     DEBUG = is_local(request)
 
     ip = request.client.host
@@ -314,34 +364,47 @@ async def ask(request: Request):
             {"resposta": "Companheiro, o diálogo precisa de pausa para reflexão."},
             status_code=429
         )
+
     try:
-        data         = await request.json()
+        data = await request.json()
         pergunta_raw = data.get("pergunta", "").strip()
-        livro        = data.get("livro", "todos").strip()
-        pergunta     = sanitizar_pergunta(pergunta_raw)
+        livro = data.get("livro", "todos").strip()
+        pergunta = sanitizar_pergunta(pergunta_raw)
 
         if not pergunta:
             return JSONResponse({"resposta": resposta_bloqueio()})
 
-        if pergunta.lower() in ["sair", "exit", "tchau", "obrigado", "ok", "quit"]:
+        if pergunta.lower() in ["sair", "exit", "tchau", "obrigado", "ok", "quit", "bye", "thanks"]:
             return JSONResponse({"resposta": random.choice(DESPEDIDA_JS)})
 
-        # Sessão e histórico por usuário
-        session_id        = data.get("session_id", ip)
+        session_id = data.get("session_id", ip)
         historico_usuario = conversation_memory.get(session_id, [])
 
-        # Sorteia provider e obtém top_k antes da busca
         provider_nome, provider_cfg = ai_provider.sortear_provider()
         top_k = provider_cfg.get("top_k", 5)
 
-        contexto  = buscar_contexto(pergunta, biblioteca_freire, top_k=top_k, livro=livro)
+        t0_busca = time.time()
+
+        # ========== BUSCA CONTEXTO ==========
+        livro_validado = livro if livro.lower() in LIVROS_VALIDOS_SET else "todos"
+        contexto = buscar_contexto(pergunta, biblioteca_freire, top_k=top_k, livro=livro_validado)
+        
+        # ========== EXTRAI OBRAS USADAS (IGUAL BUKO) ==========
+        fontes = re.findall(r"\[OBRA: '(.+?)'\]", contexto or "")
+        fontes_unicas = list(dict.fromkeys(
+            f.split(" · ")[0].strip() for f in fontes
+            if f.split(" · ")[0].strip().lower() in LIVROS_VALIDOS_SET
+        ))
+        obra_usada = " · ".join(fontes_unicas) if fontes_unicas else ""
+
+        tempo_busca = time.time() - t0_busca
+
         mensagens = montar_prompt(pergunta, contexto)
 
-        # Injeta histórico entre system e pergunta atual
         if historico_usuario:
             msgs_historico = []
             for troca in historico_usuario[-3:]:
-                msgs_historico.append({"role": "user",      "content": troca["pergunta"]})
+                msgs_historico.append({"role": "user", "content": troca["pergunta"]})
                 msgs_historico.append({"role": "assistant", "content": troca["resposta"]})
             prompt_completo = [mensagens[0]] + msgs_historico + [mensagens[-1]]
         else:
@@ -350,17 +413,51 @@ async def ask(request: Request):
         resposta_raw, ia_nome = ai_provider.chat(prompt_completo, provider_nome=provider_nome)
         resposta_limpa = limpar_resposta(resposta_raw)
 
-        if DEBUG:
-            print("-" * 50)
-            print("      IA:", ia_nome)
-            print("   LIVRO:", livro)
-            print("PERGUNTA:", pergunta)
-            print("CONTEXTO:", contexto[:80])
-
+        # ========== VERIFICA BLOQUEIO ANTES DE CONTAR ==========
         if is_bloqueado(resposta_limpa):
-            return JSONResponse({"resposta": resposta_bloqueio()})
+            return JSONResponse({
+                "resposta": resposta_bloqueio(),
+                "obra_usada": obra_usada,
+                "ia_nome": ia_nome
+            })
 
-        # Salva troca na memória da sessão
+        # ========== SÓ CONTABILIZA SE NÃO FOR BLOQUEADO ==========
+        incrementar(NOME_CONTADOR_PERGUNTAS)
+
+        # ========== BLOCO DE LOG (DEBUG) - IGUAL BUKO ==========
+        if DEBUG:
+            elapsed_total = time.time() - start_time
+            process = psutil.Process(os.getpid())
+            mem_rss = process.memory_info().rss / 1024 / 1024
+            mem_percent = process.memory_percent()
+            cpu_percent = process.cpu_percent(interval=None)
+            threads = process.num_threads()
+
+            modelo = provider_cfg.get('model', 'N/A')
+            temperatura = provider_cfg.get('temperature', 'N/A')
+            max_tokens = provider_cfg.get('max_tokens', 'N/A')
+            top_p = provider_cfg.get('top_p', 'N/A')
+
+            print("\n" + "=" * 60)
+            print(f"IA              : {ia_nome} ({modelo})")
+            print(f"Config          : temp={temperatura} | max_tokens={max_tokens} | top_p={top_p}")
+            print(f"Livro           : {livro_validado}")
+            print(f"Obra usada      : {obra_usada or '—'}")
+            print("-" * 60)
+            print(f"Pergunta        : {pergunta}")
+            print(f"Contexto (120c) : {contexto[:120]}...")
+            print("-" * 60)
+            print(f"Busca (rede)    : {tempo_busca:.3f} s")
+            print(f"Tempo total     : {elapsed_total:.3f} s")
+            print(f"Memória (RAM)   : {round(mem_rss, 2)} MB ({round(mem_percent, 2)}% do sistema)")
+            print(f"CPU / Threads   : {cpu_percent}% de uso | {threads} threads ativas")
+            print(f"Sessões ativas  : {len(conversation_memory)}")
+            print(f"IPs monitorados : {len(_contadores)}")
+            print(f"Visitas         : {total(NOME_CONTADOR_VISITAS)}")
+            print(f"Perguntas       : {total(NOME_CONTADOR_PERGUNTAS)}")
+            print("=" * 60 + "\n")
+
+        # ========== SALVA HISTÓRICO ==========
         if session_id not in conversation_memory:
             conversation_memory[session_id] = []
         conversation_memory[session_id].append({
@@ -372,8 +469,35 @@ async def ask(request: Request):
         if len(conversation_memory) > 1000:
             conversation_memory.clear()
 
-        resposta_exibida = f"{resposta_limpa}\n\n— {ia_nome}"
-        return JSONResponse({"resposta": resposta_exibida})
+        # ========== LINHA DE RODAPÉ COM METADADOS (IGUAL KUSHIN-K) ==========
+        elapsed_total = time.time() - start_time
+
+        # Monta a linha de metadados
+        metadata_parts = [
+            PERFIL_NOME,                 # "Educador Freire"
+            ia_nome,                     # IA usada
+        ]
+
+        # Adiciona obra usada se houver
+        if obra_usada:
+            metadata_parts.append(f"📖 {obra_usada}")
+
+        # Adiciona tempo de resposta
+        metadata_parts.append(f"{elapsed_total:.2f} s")
+
+        # Junta tudo com " · "
+        linha_metadados = " · ".join(metadata_parts)
+
+        # Resposta final com rodapé
+        resposta_final = f"{resposta_limpa}\n\n— {linha_metadados}"
+
+        # ========== RETORNA COM METADADOS ==========
+        return JSONResponse({
+            "resposta": resposta_final,
+            "obra_usada": obra_usada,
+            "ia_nome": ia_nome,
+            "tempo_resposta": f"{elapsed_total:.2f} s"
+        })
 
     except Exception as e:
         print(f"❌ Erro: {e}")
